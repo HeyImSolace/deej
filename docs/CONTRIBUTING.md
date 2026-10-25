@@ -28,7 +28,7 @@ Despite the above, **deej is still a fully open-source project**. I don't want m
 
 ### Getting started with development
 
-- Have a Go 1.14+ environment
+- Have a Go 1.26+ environment
 - Use the build scripts under `pkg/deej/scripts` for your built binaries if you want them to have the notion of versioning
 
 ## Issues
