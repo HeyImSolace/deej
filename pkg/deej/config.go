@@ -3,11 +3,13 @@ package deej
 import (
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
+	"github.com/thoas/go-funk"
 	"go.uber.org/zap"
 
 	"github.com/omriharel/deej/pkg/deej/util"
@@ -26,6 +28,12 @@ type CanonicalConfig struct {
 	InvertSliders bool
 
 	NoiseReductionLevel string
+
+	VolumePopup struct {
+		Enabled  bool
+		Position string
+		Labels   map[int]string
+	}
 
 	logger             *zap.SugaredLogger
 	notifier           Notifier
@@ -53,10 +61,21 @@ const (
 	configKeyCOMPort             = "com_port"
 	configKeyBaudRate            = "baud_rate"
 	configKeyNoiseReductionLevel = "noise_reduction"
+	configKeyVolumePopupEnabled  = "volume_popup.enabled"
+	configKeyVolumePopupPosition = "volume_popup.position"
+	configKeyVolumePopupLabels   = "volume_popup.labels"
 
 	defaultCOMPort  = "COM4"
 	defaultBaudRate = 9600
+
+	defaultVolumePopupPosition = "bottom-center"
 )
+
+var validVolumePopupPositions = []string{
+	"top-left", "top-center", "top-right",
+	"center-left", "center", "center-right",
+	"bottom-left", "bottom-center", "bottom-right",
+}
 
 // has to be defined as a non-constant because we're using path.Join
 var internalConfigPath = path.Join(".", logDirectory)
@@ -89,6 +108,8 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 	userConfig.SetDefault(configKeyInvertSliders, false)
 	userConfig.SetDefault(configKeyCOMPort, defaultCOMPort)
 	userConfig.SetDefault(configKeyBaudRate, defaultBaudRate)
+	userConfig.SetDefault(configKeyVolumePopupEnabled, true)
+	userConfig.SetDefault(configKeyVolumePopupPosition, defaultVolumePopupPosition)
 
 	internalConfig := viper.New()
 	internalConfig.SetConfigName(internalConfigName)
@@ -238,6 +259,36 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 
 	cc.InvertSliders = cc.userConfig.GetBool(configKeyInvertSliders)
 	cc.NoiseReductionLevel = cc.userConfig.GetString(configKeyNoiseReductionLevel)
+
+	cc.VolumePopup.Enabled = cc.userConfig.GetBool(configKeyVolumePopupEnabled)
+
+	// allow shorthands like "top" (top-center) or "left" (center-left)
+	position := strings.ToLower(strings.TrimSpace(cc.userConfig.GetString(configKeyVolumePopupPosition)))
+	switch position {
+	case "top", "bottom":
+		position += "-center"
+	case "left", "right":
+		position = "center-" + position
+	}
+
+	if !funk.ContainsString(validVolumePopupPositions, position) {
+		cc.logger.Warnw("Invalid volume popup position specified, using default value",
+			"key", configKeyVolumePopupPosition,
+			"invalidValue", position,
+			"defaultValue", defaultVolumePopupPosition)
+		cc.notifier.Notify("Invalid volume popup position!",
+			fmt.Sprintf("\"%s\" isn't supported, using %s instead.", position, defaultVolumePopupPosition))
+
+		position = defaultVolumePopupPosition
+	}
+	cc.VolumePopup.Position = position
+
+	cc.VolumePopup.Labels = map[int]string{}
+	for sliderIdxString, label := range cc.userConfig.GetStringMapString(configKeyVolumePopupLabels) {
+		if sliderIdx, err := strconv.Atoi(sliderIdxString); err == nil {
+			cc.VolumePopup.Labels[sliderIdx] = label
+		}
+	}
 
 	cc.logger.Debug("Populated config fields from vipers")
 

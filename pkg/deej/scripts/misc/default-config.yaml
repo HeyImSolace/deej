@@ -25,3 +25,12 @@ baud_rate: 9600
 # adjust the amount of signal noise reduction depending on your hardware quality
 # supported values are "low" (excellent hardware), "default" (regular hardware) or "high" (bad, noisy hardware)
 noise_reduction: default
+
+# a small popup that shows up whenever a slider changes a volume (windows only)
+volume_popup:
+  enabled: true
+  # top-left, top-center, top-right, center-left, center, center-right, bottom-left, bottom-center or bottom-right
+  position: bottom-center
+  # optional names to show for each slider, by slider index (defaults to the mapped app names)
+  labels:
+    0: Voice

@@ -15,6 +15,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/thoas/go-funk v0.9.3
 	go.uber.org/zap v1.28.0
+	golang.org/x/sys v0.49.0
 )
 
 require (
@@ -51,6 +52,5 @@ require (
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 )

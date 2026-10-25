@@ -23,6 +23,9 @@ type sessionMap struct {
 
 	lastSessionRefresh time.Time
 	unmappedSessions   []Session
+
+	// sliders that already moved once; the initial reading on connect shouldn't pop up the volume OSD
+	movedSliders map[int]bool
 }
 
 const (
@@ -66,6 +69,7 @@ func newSessionMap(deej *Deej, logger *zap.SugaredLogger, sessionFinder SessionF
 		m:             make(map[string][]Session),
 		lock:          &sync.Mutex{},
 		sessionFinder: sessionFinder,
+		movedSliders:  make(map[int]bool),
 	}
 
 	logger.Debug("Created session map instance")
@@ -224,6 +228,7 @@ func (m *sessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 
 	targetFound := false
 	adjustmentFailed := false
+	var matchedSessions []Session
 
 	// for each possible target for this slider...
 	for _, target := range targets {
@@ -244,6 +249,7 @@ func (m *sessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 			}
 
 			targetFound = true
+			matchedSessions = append(matchedSessions, sessions...)
 
 			// iterate all matching sessions and adjust the volume of each one
 			for _, session := range sessions {
@@ -260,6 +266,18 @@ func (m *sessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 	// if we still haven't found a target or the volume adjustment failed, maybe look for the target again.
 	// processes could've opened since the last time this slider moved.
 	// if they haven't, the cooldown will take care to not spam it up
+	popup := m.deej.config.VolumePopup
+	if popup.Enabled && targetFound && m.movedSliders[event.SliderID] {
+		label, ok := popup.Labels[event.SliderID]
+		if !ok {
+			label = strings.Join(funk.Map(targets, func(t string) string {
+				return strings.TrimSuffix(t, ".exe")
+			}).([]string), ", ")
+		}
+		showVolumeOSD(label, event.PercentValue, popup.Position, funk.ContainsString(targets, inputSessionName), matchedSessions)
+	}
+	m.movedSliders[event.SliderID] = true
+
 	if !targetFound {
 		m.refreshSessions(false)
 	} else if adjustmentFailed {
