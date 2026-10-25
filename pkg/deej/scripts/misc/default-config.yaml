@@ -26,6 +26,13 @@ baud_rate: 9600
 # supported values are "low" (excellent hardware), "default" (regular hardware) or "high" (bad, noisy hardware)
 noise_reduction: default
 
+# sets how slider positions map to volume
+# "default" is linear (slider at 50% = 50% volume)
+# "log" gives finer control over lower volumes (slider position is raised to volume_scaling_exponent)
+volume_scaling: default
+# only used with "log" - higher means more slider travel for quiet volumes (2 = slider at 50% gives 25% volume)
+volume_scaling_exponent: 2
+
 # a small popup that shows up whenever a slider changes a volume (windows only)
 volume_popup:
   enabled: true

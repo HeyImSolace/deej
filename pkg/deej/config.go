@@ -29,6 +29,9 @@ type CanonicalConfig struct {
 
 	NoiseReductionLevel string
 
+	VolumeScaling         string
+	VolumeScalingExponent float64
+
 	VolumePopup struct {
 		Enabled  bool
 		Position string
@@ -61,6 +64,8 @@ const (
 	configKeyCOMPort             = "com_port"
 	configKeyBaudRate            = "baud_rate"
 	configKeyNoiseReductionLevel = "noise_reduction"
+	configKeyVolumeScaling       = "volume_scaling"
+	configKeyVolumeScalingExp    = "volume_scaling_exponent"
 	configKeyVolumePopupEnabled  = "volume_popup.enabled"
 	configKeyVolumePopupPosition = "volume_popup.position"
 	configKeyVolumePopupLabels   = "volume_popup.labels"
@@ -69,6 +74,10 @@ const (
 	defaultBaudRate = 9600
 
 	defaultVolumePopupPosition = "bottom-center"
+
+	volumeScalingLinear          = "default"
+	volumeScalingLog             = "log"
+	defaultVolumeScalingExponent = 2.0
 )
 
 var validVolumePopupPositions = []string{
@@ -108,6 +117,8 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 	userConfig.SetDefault(configKeyInvertSliders, false)
 	userConfig.SetDefault(configKeyCOMPort, defaultCOMPort)
 	userConfig.SetDefault(configKeyBaudRate, defaultBaudRate)
+	userConfig.SetDefault(configKeyVolumeScaling, volumeScalingLinear)
+	userConfig.SetDefault(configKeyVolumeScalingExp, defaultVolumeScalingExponent)
 	userConfig.SetDefault(configKeyVolumePopupEnabled, true)
 	userConfig.SetDefault(configKeyVolumePopupPosition, defaultVolumePopupPosition)
 
@@ -259,6 +270,26 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 
 	cc.InvertSliders = cc.userConfig.GetBool(configKeyInvertSliders)
 	cc.NoiseReductionLevel = cc.userConfig.GetString(configKeyNoiseReductionLevel)
+
+	cc.VolumeScaling = strings.ToLower(strings.TrimSpace(cc.userConfig.GetString(configKeyVolumeScaling)))
+	if cc.VolumeScaling != volumeScalingLinear && cc.VolumeScaling != volumeScalingLog {
+		cc.logger.Warnw("Invalid volume scaling specified, using default value",
+			"key", configKeyVolumeScaling,
+			"invalidValue", cc.VolumeScaling,
+			"defaultValue", volumeScalingLinear)
+
+		cc.VolumeScaling = volumeScalingLinear
+	}
+
+	cc.VolumeScalingExponent = cc.userConfig.GetFloat64(configKeyVolumeScalingExp)
+	if cc.VolumeScalingExponent <= 0 {
+		cc.logger.Warnw("Invalid volume scaling exponent specified, using default value",
+			"key", configKeyVolumeScalingExp,
+			"invalidValue", cc.VolumeScalingExponent,
+			"defaultValue", defaultVolumeScalingExponent)
+
+		cc.VolumeScalingExponent = defaultVolumeScalingExponent
+	}
 
 	cc.VolumePopup.Enabled = cc.userConfig.GetBool(configKeyVolumePopupEnabled)
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -287,7 +288,7 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 
 			moveEvents = append(moveEvents, SliderMoveEvent{
 				SliderID:     sliderIdx,
-				PercentValue: normalizedScalar,
+				PercentValue: sio.scaleVolume(normalizedScalar),
 			})
 
 			if sio.deej.Verbose() {
@@ -304,4 +305,14 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 			}
 		}
 	}
+}
+
+// scaleVolume maps a linear slider position (0.0-1.0) to a volume, optionally along a power curve
+// ("log" scaling) which gives the lower part of the slider finer control over quiet volumes
+func (sio *SerialIO) scaleVolume(position float32) float32 {
+	if sio.deej.config.VolumeScaling != volumeScalingLog {
+		return position
+	}
+
+	return float32(math.Pow(float64(position), sio.deej.config.VolumeScalingExponent))
 }
